@@ -1,0 +1,141 @@
+import pygame
+import sys
+
+# Initialize pygame
+pygame.init()
+
+# Constants
+TILE_SIZE = 64
+GRID_WIDTH = 8
+GRID_HEIGHT = 6
+WIDTH = TILE_SIZE * GRID_WIDTH
+HEIGHT = TILE_SIZE * GRID_HEIGHT
+FPS = 60
+
+# Colors
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+BLUE  = (0, 0, 200)
+BROWN = (139, 69, 19)
+GREEN = (0, 200, 0)
+RED   = (200, 0, 0)
+
+# Level legend:
+# 0 = empty
+# 1 = wall
+# 2 = player
+# 3 = block
+# 4 = target
+# 5 = block on target
+# 6 = player on target
+level = [
+    [1,1,1,1,1,1,1,1],
+    [1,0,0,4,0,0,0,1],
+    [1,0,3,0,0,4,0,1],
+    [1,0,0,2,0,0,0,1],
+    [1,0,0,0,3,0,0,1],
+    [1,1,1,1,1,1,1,1],
+]
+
+# Find player position
+def find_player():
+    for y, row in enumerate(level):
+        for x, tile in enumerate(row):
+            if tile == 2 or tile == 6:
+                return x, y
+    return None
+
+# Draw the game
+def draw_level(screen):
+    for y, row in enumerate(level):
+        for x, tile in enumerate(row):
+            rect = pygame.Rect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE)
+
+            if tile == 1:
+                pygame.draw.rect(screen, BLUE, rect)   # wall
+            elif tile == 2:
+                pygame.draw.rect(screen, GREEN, rect)  # player
+            elif tile == 3:
+                pygame.draw.rect(screen, BROWN, rect)  # block
+            elif tile == 4:
+                pygame.draw.rect(screen, WHITE, rect)  # target
+            elif tile == 5:
+                pygame.draw.rect(screen, RED, rect)    # block on target
+            elif tile == 6:
+                pygame.draw.rect(screen, GREEN, rect)  # player on target
+                pygame.draw.rect(screen, WHITE, rect, 4)
+
+            pygame.draw.rect(screen, BLACK, rect, 1)
+
+# Move function
+def move(dx, dy):
+    global level
+    x, y = find_player()
+    target_x, target_y = x + dx, y + dy
+    beyond_x, beyond_y = x + 2*dx, y + 2*dy
+
+    # Helper to check if tile is target underneath
+    def is_target(tile):
+        return tile in (4, 5, 6)
+
+    current_tile = level[y][x]
+    target_tile = level[target_y][target_x]
+
+    # If wall → stop
+    if target_tile == 1:
+        return
+
+    # If block
+    if target_tile in (3, 5):
+        beyond_tile = level[beyond_y][beyond_x]
+        if beyond_tile in (0, 4):  # empty or target
+            # Move block
+            level[beyond_y][beyond_x] = 5 if beyond_tile == 4 else 3
+            # Move player
+            level[target_y][target_x] = 6 if target_tile == 5 else 2
+            # Leave behind correct tile
+            level[y][x] = 4 if current_tile == 6 else 0
+    # If empty or target
+    elif target_tile in (0, 4):
+        level[target_y][target_x] = 6 if target_tile == 4 else 2
+        level[y][x] = 4 if current_tile == 6 else 0
+
+# Check win condition
+def check_win():
+    for row in level:
+        for tile in row:
+            if tile == 4:  # any target left empty
+                return False
+    return True
+
+# Setup screen
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Sokoban Clone")
+clock = pygame.time.Clock()
+
+# Main loop
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                move(0, -1)
+            elif event.key == pygame.K_DOWN:
+                move(0, 1)
+            elif event.key == pygame.K_LEFT:
+                move(-1, 0)
+            elif event.key == pygame.K_RIGHT:
+                move(1, 0)
+
+    screen.fill(BLACK)
+    draw_level(screen)
+
+    if check_win():
+        font = pygame.font.SysFont(None, 60)
+        text = font.render("You Win!", True, (255, 215, 0))
+        screen.blit(text, (WIDTH//2 - 100, HEIGHT//2 - 30))
+
+    pygame.display.flip()
+    clock.tick(FPS)
