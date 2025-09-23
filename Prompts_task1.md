@@ -2242,3 +2242,288 @@ That’s fine — but with the new `sys.exit()` in logout, the program will term
 ---
 
 👉 Do you want me to also make it so when logging out, the **login screen opens in the *same* window** (without closing and launching a subprocess)? That would avoid having multiple Python processes running.
+
+now i need to add the page where the admin creates a new level
+
+
+Nice 💡 now you’re at the fun part: giving **admins** the ability to create Sokoban levels.
+
+We’ll add an **Editor screen** (`STATE = "editor"`) in `menu.py` where the admin can place objects (walls, blocks, goals, player) on a grid and save it as a JSON level file.
+
+---
+
+## 🏗️ Design of the Editor Page
+
+* **Grid:** 8×8 or 10×10 tiles (same size as your levels).
+* **Controls:**
+
+  * Left click → place currently selected object.
+  * Right click → clear a tile (set to empty).
+  * Number keys (`1–5`) or keys (`W, B, G, P, E`) → switch between object types:
+
+    * `1 / W` → Wall
+    * `2 / G` → Goal
+    * `3 / B` → Block
+    * `4 / P` → Player
+    * `0 / E` → Empty
+* **Save Button:** Press `S` → saves the grid into `levels.json`.
+* **Exit:** Press `ESC` → return to menu.
+
+---
+
+## 🔑 Data Format for Levels
+
+We’ll save all levels in a `levels.json` file like this:
+
+```json
+[
+  [
+    [1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,1],
+    [1,0,2,3,4,0,0,1],
+    [1,0,0,0,2,0,0,1],
+    [1,0,0,0,3,0,0,1],
+    [1,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1]
+  ]
+]
+```
+
+---
+
+## ✅ Example Editor Screen (`menu.py`)
+
+Add this function:
+
+```python
+import json
+
+LEVEL_FILE = "levels.json"
+
+def editor_screen():
+    grid_size = 8
+    tile_size = 50
+    grid = [[0 for _ in range(grid_size)] for _ in range(grid_size)]
+    selected = 1  # start with wall
+
+    editing = True
+    while editing:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                editing = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    editing = False
+                elif event.key == pygame.K_0:
+                    selected = 0
+                elif event.key == pygame.K_1:
+                    selected = 1
+                elif event.key == pygame.K_2:
+                    selected = 2
+                elif event.key == pygame.K_3:
+                    selected = 3
+                elif event.key == pygame.K_4:
+                    selected = 4
+                elif event.key == pygame.K_s:
+                    save_level(grid)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = event.pos
+                gx, gy = x // tile_size, y // tile_size
+                if 0 <= gx < grid_size and 0 <= gy < grid_size:
+                    if event.button == 1:  # left click
+                        grid[gy][gx] = selected
+                    elif event.button == 3:  # right click clears
+                        grid[gy][gx] = 0
+
+        # Draw editor grid
+        screen.fill(WHITE)
+        for y in range(grid_size):
+            for x in range(grid_size):
+                rect = pygame.Rect(x*tile_size, y*tile_size, tile_size, tile_size)
+                val = grid[y][x]
+                if val == 1:  # Wall
+                    pygame.draw.rect(screen, (139, 69, 19), rect)
+                elif val == 2:  # Goal
+                    pygame.draw.circle(screen, (0, 200, 0), rect.center, tile_size//4)
+                elif val == 3:  # Block
+                    pygame.draw.rect(screen, (0, 0, 255), rect.inflate(-10, -10))
+                elif val == 4:  # Player
+                    pygame.draw.circle(screen, (255, 0, 0), rect.center, tile_size//3)
+                pygame.draw.rect(screen, (200,200,200), rect, 1)  # grid lines
+
+        draw_text(f"Selected: {selected}", 400, 50)
+        draw_text("Press S to Save, ESC to Exit", 300, 350)
+        pygame.display.flip()
+```
+
+---
+
+## Save Function
+
+```python
+def save_level(grid):
+    try:
+        with open(LEVEL_FILE, "r") as f:
+            levels = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        levels = []
+
+    levels.append(grid)
+
+    with open(LEVEL_FILE, "w") as f:
+        json.dump(levels, f, indent=4)
+
+    print("✅ Level saved!")
+```
+
+---
+
+## 🔑 Flow
+
+1. Only **admin** sees the Editor in menu.
+2. In the editor:
+
+   * Use mouse clicks to place objects.
+   * Use `0–4` keys to switch objects.
+   * Press **S** to save to `levels.json`.
+   * Press **ESC** to go back to menu.
+
+---
+
+👉 Do you want me to also show you how to **load levels from `levels.json` into the game** so that every time you save a new one, it becomes playable automatically?
+
+i want to make it so that the json file has one level and each time the admin changes it it overwrites the old one and that level is taken from the json file
+
+
+Perfect 👍 that makes it simpler — instead of storing **many levels** in `levels.json`, you only keep **one current level**.
+When the admin saves from the editor, it **overwrites** the file.
+When the player starts the game, it always **loads that JSON level**.
+
+---
+
+## 🔑 Step 1 – Editor Save (Overwrite JSON)
+
+Replace the `save_level()` function with:
+
+```python
+def save_level(grid):
+    # Always overwrite with the new level
+    with open(LEVEL_FILE, "w") as f:
+        json.dump(grid, f, indent=4)
+    print("✅ Level saved (overwritten)")
+```
+
+So now `levels.json` looks like:
+
+```json
+[
+  [1,1,1,1,1,1,1,1],
+  [1,0,0,0,0,0,0,1],
+  [1,0,2,3,4,0,0,1],
+  [1,0,0,0,2,0,0,1],
+  [1,0,0,0,3,0,0,1],
+  [1,0,0,0,0,0,0,1],
+  [1,1,1,1,1,1,1,1]
+]
+```
+
+---
+
+## 🔑 Step 2 – Game Loads Level from JSON
+
+In `game.py`, instead of a hardcoded `level_map`, load it from the file:
+
+```python
+LEVEL_FILE = "levels.json"
+
+def load_level():
+    with open(LEVEL_FILE, "r") as f:
+        return json.load(f)
+
+level_map = load_level()
+```
+
+Now your Sokoban game always plays the latest level that the admin saved.
+
+---
+
+## 🔑 Step 3 – Editor Usage Recap
+
+* Only **admin** can access the editor (already handled in `menu_screen`).
+* Admin places tiles with mouse + keyboard (0–4).
+* Press `S` → saves level to `levels.json`, overwriting old one.
+* Players → when they choose Play, the game loads `levels.json` and runs that board.
+
+---
+
+## ✅ Final Flow
+
+1. Admin logs in → goes to **Puzzle Editor**.
+2. Builds a new level → presses `S` → old `levels.json` replaced.
+3. Any player (or guest) → presses Play → `game.py` loads the JSON and plays the new level.
+
+---
+
+👉 Do you want me to also add a **visual preview** of the saved level in the leaderboard/menu (so players can see the daily challenge board before starting)?
+
+i want to write down on the write under selected what each number represents
+
+
+Perfect 👍 you can add a **legend** under the “Selected” text so the admin knows which number corresponds to which object.
+
+---
+
+## ✅ Update in `editor_screen()`
+
+Right after this line:
+
+```python
+draw_text(f"Selected: {selected}", 400, 50)
+```
+
+Add the legend:
+
+```python
+draw_text("0: Empty", 400, 90)
+draw_text("1: Wall", 400, 130)
+draw_text("2: Goal", 400, 170)
+draw_text("3: Block", 400, 210)
+draw_text("4: Player", 400, 250)
+```
+
+---
+
+## 🔑 Full Example (bottom of your loop)
+
+```python
+        draw_text(f"Selected: {selected}", 400, 50)
+        draw_text("0: Empty", 400, 90)
+        draw_text("1: Wall", 400, 130)
+        draw_text("2: Goal", 400, 170)
+        draw_text("3: Block", 400, 210)
+        draw_text("4: Player", 400, 250)
+        draw_text("Press S to Save, ESC to Exit", 250, 350)
+        pygame.display.flip()
+```
+
+---
+
+## ✅ Result
+
+When you open the editor, on the right side you’ll see:
+
+```
+Selected: 3
+0: Empty
+1: Wall
+2: Goal
+3: Block
+4: Player
+Press S to Save, ESC to Exit
+```
+
+So you always know which number maps to which object.
+
+---
+
+👉 Do you also want me to make it so the **name of the selected item** is shown, e.g. `Selected: 3 (Block)` instead of just `Selected: 3`?
