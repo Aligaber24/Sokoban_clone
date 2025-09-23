@@ -41,7 +41,7 @@ def editor_screen():
     draw_text("Press ESC to return", 180, 300)
     pygame.display.flip()
 
-# Main loop
+# Main loopp
 running = True
 while running:
     for event in pygame.event.get():
