@@ -45,7 +45,7 @@ def find_player():
                 return x, y
     return None
 
-# Draw the game
+# Draw the gamee
 def draw_level(screen):
     for y, row in enumerate(level):
         for x, tile in enumerate(row):
