@@ -1,22 +1,10 @@
 [
     {
-        "user": "Ali",
-        "moves": 9
-    },
-    {
-        "user": "zizo",
-        "moves": 9
-    },
-    {
-        "user": "guest",
-        "moves": 3
-    },
-    {
         "user": "admin",
-        "moves": 5
+        "moves": 4
     },
     {
-        "user": "admin",
-        "moves": 17
+        "user": "ali",
+        "moves": 4
     }
 ]
